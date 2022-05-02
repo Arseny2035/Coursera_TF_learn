@@ -2,8 +2,8 @@ import tensorflow_datasets as tfds
 import tensorflow as tf
 
 import keras
-from keras.models import Sequential,Model
-from keras.layers import Dense,Conv2D,Flatten,MaxPooling2D,GlobalAveragePooling2D
+from keras.models import Sequential, Model
+from keras.layers import Dense, Conv2D, Flatten, MaxPooling2D, GlobalAveragePooling2D
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -36,39 +36,37 @@ augmented_training_data = train_data.map(augment_images)
 # shuffle and create batches before training
 train_batches = augmented_training_data.shuffle(1024).batch(32)
 
-
 # Build the classifier
 # This will look familiar to you because it is almost identical to the previous model we built.
 # The key difference is the output is just one unit that is sigmoid activated. This is because
 # we're only dealing with two classes.
 model = Sequential()
-model.add(Conv2D(16,input_shape=(300,300,3),kernel_size=(3,3),activation='relu',padding='same'))
-model.add(MaxPooling2D(pool_size=(2,2)))
+model.add(Conv2D(16, input_shape=(300, 300, 3), kernel_size=(3, 3), activation='relu', padding='same'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
 
-model.add(Conv2D(32,kernel_size=(3,3),activation='relu',padding='same'))
-model.add(MaxPooling2D(pool_size=(2,2)))
+model.add(Conv2D(32, kernel_size=(3, 3), activation='relu', padding='same'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
 
-model.add(Conv2D(64,kernel_size=(3,3),activation='relu',padding='same'))
-model.add(MaxPooling2D(pool_size=(2,2)))
+model.add(Conv2D(64, kernel_size=(3, 3), activation='relu', padding='same'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
 
-model.add(Conv2D(128,kernel_size=(3,3),activation='relu',padding='same'))
+model.add(Conv2D(128, kernel_size=(3, 3), activation='relu', padding='same'))
 model.add(GlobalAveragePooling2D())
-model.add(Dense(1,activation='sigmoid'))
+model.add(Dense(1, activation='sigmoid'))
 
 model.summary()
 
-
 # The loss can be adjusted from last time to deal with just two classes.
 # For that, we pick binary_crossentropy.
-model.compile(loss='binary_crossentropy',metrics=['accuracy'],optimizer=tf.keras.optimizers.RMSprop(lr=0.001))
-model.fit(train_batches,epochs=25)
+model.compile(loss='binary_crossentropy', metrics=['accuracy'], optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.001))
+model.fit(train_batches, epochs=25)
 
 # Building the CAM model
 # You will follow the same steps as before in generating the class activation maps.
 gap_weights = model.layers[-1].get_weights()[0]
 gap_weights.shape
 
-cam_model  = Model(inputs=model.input,outputs=(model.layers[-3].output,model.layers[-1].output))
+cam_model = Model(inputs=model.input, outputs=(model.layers[-3].output, model.layers[-1].output))
 cam_model.summary()
 
 
@@ -107,8 +105,45 @@ def show_cam(image_value, features, results):
 # Testing the Model
 # Let's download a few images and see how the class activation maps look like.
 
-wget.download('https://storage.googleapis.com/laurencemoroney-blog.appspot.com/MLColabImages/cat1.jpg','cat1.jpg')
+wget.download('https://storage.googleapis.com/laurencemoroney-blog.appspot.com/MLColabImages/cat1.jpg', 'cat1.jpg')
+
+
 # !wget -O cat2.jpg https://storage.googleapis.com/laurencemoroney-blog.appspot.com/MLColabImages/cat2.jpg
 # !wget -O catanddog.jpg https://storage.googleapis.com/laurencemoroney-blog.appspot.com/MLColabImages/catanddog.jpg
 # !wget -O dog1.jpg https://storage.googleapis.com/laurencemoroney-blog.appspot.com/MLColabImages/dog1.jpg
 # !wget -O dog2.jpg https://storage.googleapis.com/laurencemoroney-blog.appspot.com/MLColabImages/dog2.jpg
+
+
+# utility function to preprocess an image and show the CAM
+def convert_and_classify(image):
+    # load the image
+    img = cv2.imread(image)
+
+    # preprocess the image before feeding it to the model
+    img = cv2.resize(img, (300, 300)) / 255.0
+
+    # add a batch dimension because the model expects it
+    tensor_image = np.expand_dims(img, axis=0)
+
+    # get the features and prediction
+    features, results = cam_model.predict(tensor_image)
+
+    # generate the CAM
+    show_cam(tensor_image, features, results)
+
+
+convert_and_classify('cat1.jpg')
+# convert_and_classify('cat2.jpg')
+# convert_and_classify('catanddog.jpg')
+# convert_and_classify('dog1.jpg')
+# convert_and_classify('dog2.jpg')
+
+# Let's also try it with some of the test images before we make some observations.
+# preprocess the test images
+augmented_test_data = test_data.map(augment_images)
+test_batches = augmented_test_data.batch(1)
+
+for img, lbl in test_batches.take(5):
+    print(f"ground truth: {'dog' if lbl else 'cat'}")
+    features, results = cam_model.predict(img)
+    show_cam(img, features, results)
