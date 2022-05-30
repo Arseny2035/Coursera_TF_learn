@@ -1,6 +1,6 @@
 import tensorflow as tf
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Dense
+from keras.models import Model
+from keras.layers import Dense
 
 import numpy as np
 import pandas as pd
@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 import utils
 
 # URL of the white wine dataset
-URI = 'data/W1/winequality-white.csv'
+URI = 'data/winequality-white.csv'
 
 # load the dataset from the URL
 white_df = pd.read_csv(URI, sep=";")
@@ -26,7 +26,7 @@ print(white_df.alcohol[0])
 print(white_df.alcohol[100])
 
 # URL of the red wine dataset
-URI = 'data/W1/winequality-red.csv'
+URI = 'data/winequality-red.csv'
 
 # load the dataset from the URL
 red_df = pd.read_csv(URI, sep=";")

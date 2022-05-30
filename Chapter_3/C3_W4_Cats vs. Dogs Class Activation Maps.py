@@ -29,7 +29,7 @@ def augment_images(image, label):
 
     return image, label
 
-
+wget.download('https://storage.googleapis.com/laurencemoroney-blog.appspot.com/MLColabImages/cat1.jpg', 'cat1.jpg')
 # use the utility function above to preprocess the images
 augmented_training_data = train_data.map(augment_images)
 

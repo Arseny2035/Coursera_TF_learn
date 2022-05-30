@@ -11,7 +11,7 @@ ys = np.array([-3.0, -1.0, 1.0, 3.0, 5.0, 7.0], dtype=float)
 model = tf.keras.Sequential([keras.layers.Dense(units=1, input_shape=[1])])
 model.compile(optimizer='sgd', loss='mean_squared_error')
 model.fit(xs, ys, epochs=500, verbose=0)
-print(model.predict([10.0]))
+print("optimizer='sgd', loss='mean_squared_error': ", model.predict([10.0]))
 
 
 # def my_huber_loss_with_threshold(threshold=1):
@@ -37,9 +37,9 @@ def my_huber_loss(y_true, y_pred):
 model = tf.keras.Sequential([keras.layers.Dense(units=1, input_shape=[1])])
 model.compile(optimizer='sgd', loss=my_huber_loss)
 model.fit(xs, ys, epochs=500, verbose=0)
-print(model.predict([10.0]))
+print("optimizer='sgd', loss=my_huber_loss: ", model.predict([10.0]))
 
-from tensorflow.keras.losses import Loss
+from keras.losses import Loss
 
 class MyHuberLoss(Loss):
     threshold = 1
@@ -59,7 +59,7 @@ class MyHuberLoss(Loss):
 model = tf.keras.Sequential([keras.layers.Dense(units=1, input_shape=[1])])
 model.compile(optimizer='sgd', loss=MyHuberLoss(threshold=1))
 model.fit(xs, ys, epochs=500, verbose=0)
-print(model.predict([10.0]))
+print("optimizer='sgd', loss=MyHuberLoss(threshold=1): ", model.predict([10.0]))
 
 
 def my_rmse(y_true, y_pred):

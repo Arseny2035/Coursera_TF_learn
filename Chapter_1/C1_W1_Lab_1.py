@@ -1,5 +1,5 @@
 import tensorflow as tf
-from keras.utils import plot_model
+from keras.utils.vis_utils import plot_model
 import pydotplus as pydot
 import graphviz
 from keras.models import Model, Sequential

@@ -11,6 +11,7 @@
 #
 #
 # import tensorflow as tf
+
 # print(tf.test.is_gpu_available(cuda_only=False, min_cuda_compute_capability=None))
 
 
@@ -151,15 +152,16 @@
 # print(twoSum(nums=[-1,-2,-3,-4,-5], target=-8))
 
 
+# A = [1, 2, 3, 4, 5 ,6, 7, 8, 9, 9]
+#
+# B = ['c', 'a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c']
+#
+# summary = dict()
+# for i in range(len(A)):
+#     if B[i] not in summary:
+#         summary[B[i]] = 0
+#     summary[B[i]] += A[i]
+#
+# print(summary)
 
-A = [1, 2, 3, 4, 5 ,6, 7, 8, 9, 9]
 
-B = ['c', 'a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c']
-
-summary = dict()
-for i in range(len(A)):
-    if B[i] not in summary:
-        summary[B[i]] = 0
-    summary[B[i]] += A[i]
-
-print(summary)

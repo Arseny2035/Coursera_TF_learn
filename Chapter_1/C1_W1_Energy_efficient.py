@@ -42,7 +42,7 @@ def plot_metrics(metric_name, title, ylim=5):
     plt.show()
 
 # Specify data
-URI = 'data/W1/ENB2012_data.xlsx'
+URI = 'data/ENB2012_data.xlsx'
 
 # Use pandas excel reader
 df = pd.read_excel(URI)

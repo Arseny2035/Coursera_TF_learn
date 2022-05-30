@@ -1,6 +1,9 @@
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import utils
+import os
+from keras.models import model_from_json
+
 
 # Examples:
 ##################################################
@@ -19,6 +22,13 @@ import utils
 #     vars(my_obj)[f'var{i}'] = 0
 # print('vars(my_obj):', vars(my_obj))
 ##################################################
+
+# Define preprocessing function
+def preprocess(features):
+    # Resize and normalize
+    image = tf.image.resize(features['image'], (224, 224))
+    return tf.cast(image, tf.float32) / 255., features['label']
+
 
 class Block(tf.keras.Model):
     def __init__(self, filters, kernel_size, repetitions, pool_size=2, strides=2):
@@ -89,26 +99,55 @@ class MyVGG(tf.keras.Model):
         x = self.classifier(x)
         return x
 
-# For reference only. Please do not uncomment in Coursera Labs because it might cause the grader to time out.
-# You can upload your notebook to Colab instead if you want to try the code below.
 
-# Download the dataset
-dataset = tfds.load('cats_vs_dogs', split=tfds.Split.TRAIN, data_dir='../data/')
+# Set options for model save/load.
+MUST_SAVE_THE_MODEL = True
+LOAD_MODEL = True
+MODEL_FILE = 'Data/VGG/models/model.json'
+WEIGHTS_FILE = 'Data/VGG/models/model_weights.h5'
 
-# Initialize VGG with the number of classes
-vgg = MyVGG(num_classes=2)
+OPTIMIZER = 'adam'
+LOSS = 'sparse_categorical_crossentropy'
+METRICS = ['accuracy']
 
-# Compile with losses and metrics
-vgg.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+# Load or create model.
+if LOAD_MODEL and os.path.exists(MODEL_FILE) \
+        and os.path.exists(WEIGHTS_FILE):
 
- # Define preprocessing function
-def preprocess(features):
-    # Resize and normalize
-    image = tf.image.resize(features['image'], (224, 224))
-    return tf.cast(image, tf.float32) / 255., features['label']
+    # Load saved model if it exists.
+    json_file = open(MODEL_FILE)
+    loaded_model_json = json_file.read()
+    json_file.close()
+    vgg = model_from_json(loaded_model_json)
+    vgg.load_weights(WEIGHTS_FILE)
+    vgg.compile(optimizer=OPTIMIZER, loss=LOSS, metrics=METRICS)
+    print("Model was load from disk!")
 
-# Apply transformations to dataset
-dataset = dataset.map(preprocess).batch(32)
+else:
 
-# Train the custom VGG model
-vgg.fit(dataset, epochs=10)
+    # Download the dataset
+    setattr(tfds.image_classification.cats_vs_dogs, '_URL',
+            'https://download.microsoft.com/download/3/E/1/3E1C3F21-ECDB-4869-8368-6DEBA77B919F/kagglecatsanddogs_5340.zip')
+    dataset = tfds.load('cats_vs_dogs', split=tfds.Split.TRAIN, data_dir='../data/cats_vs_dogs')
+
+    # Initialize VGG with the number of classes
+    vgg = MyVGG(num_classes=2)
+
+    vgg.compile(optimizer=OPTIMIZER, loss=LOSS, metrics=METRICS)
+
+    # Apply transformations to dataset
+    dataset = dataset.map(preprocess).batch(32)
+
+    # Train the custom VGG model
+    vgg.fit(dataset, epochs=10)
+
+    # Save new model if we had to.
+    if MUST_SAVE_THE_MODEL:
+        model_json = vgg.to_json()
+        with open(MODEL_FILE, 'w') as json_file:
+            json_file.write(model_json)
+            json_file.close()
+        # resnet.save(MODEL_FILE)
+
+        vgg.save_weights(WEIGHTS_FILE)
+        print("Model saved to disk!")
