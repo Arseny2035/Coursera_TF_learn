@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 import utils
 
 # URL of the white wine dataset
-URI = 'data/winequality-white.csv'
+URI = 'data/Wine_Quality_simple_dense/winequality-white.csv'
 
 # load the dataset from the URL
 white_df = pd.read_csv(URI, sep=";")
@@ -26,7 +26,7 @@ print(white_df.alcohol[0])
 print(white_df.alcohol[100])
 
 # URL of the red wine dataset
-URI = 'data/winequality-red.csv'
+URI = 'data/Wine_Quality_simple_dense/winequality-red.csv'
 
 # load the dataset from the URL
 red_df = pd.read_csv(URI, sep=";")
@@ -110,6 +110,7 @@ norm_val_X = norm(val)
 # normalize the test set
 norm_test_X = norm(test)
 
+print('Test norm model')
 utils.test_norm(norm_train_X, norm_val_X, norm_test_X, train, val, test)
 
 
@@ -120,24 +121,25 @@ def base_model(inputs):
     # connect another Dense layer with 128 neurons and a relu activation
     x = Dense(128, activation=tf.nn.relu)(x)
     return x
-
+print('Test base model')
 utils.test_base_model(base_model)
 
 
-def final_model(inputs):
-    # get the base model
-    x = base_model(inputs)
-
-    # connect the output Dense layer for regression
-    wine_quality = Dense(units='1', name='wine_quality')(x)
-
-    # connect the output Dense layer for classification. this will use a sigmoid activation.
-    wine_type = Dense(units='1', activation=tf.keras.activations.sigmoid, name='wine_type')(x)
-
-    # define the model using the input and output layers
-    model = Model(inputs=inputs, outputs=[wine_quality, wine_type])
-
-    return model
-
-utils.test_final_model(final_model)
+# def final_model(inputs):
+#     # get the base model
+#     x = base_model(inputs)
+#
+#     # connect the output Dense layer for regression
+#     wine_quality = Dense(units='1', name='wine_quality')(x)
+#
+#     # connect the output Dense layer for classification. this will use a sigmoid activation.
+#     wine_type = Dense(units='1', activation=tf.keras.activations.sigmoid, name='wine_type')(x)
+#
+#     # define the model using the input and output layers
+#     model = Model(inputs=inputs, outputs=[wine_quality, wine_type])
+#
+#     return model
+#
+# print('Test final_model model')
+# utils.test_final_model(final_model)
 ##

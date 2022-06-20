@@ -121,7 +121,8 @@ plt.rc('ytick', left=False, right=False, labelsize='large')
 plt.rc('axes', facecolor='F8F8F8', titlesize="large", edgecolor='white')
 plt.rc('text', color='a8151a')
 plt.rc('figure', facecolor='F0F0F0')  # Matplotlib fonts
-MATPLOTLIB_FONT_DIR = os.path.join(os.path.dirname(plt.__file__), "mpl-data/fonts/ttf")
+MATPLOTLIB_FONT_DIR = 'Data/Object_localization_MNIST/font'
+print("Matplotlib configured")
 
 
 # pull a batch from the datasets. This code is not very nice, it gets much better in eager mode (TODO)
@@ -188,12 +189,14 @@ def display_digits_with_boxes(digits, predictions, labels, pred_bboxes, bboxes, 
     n_digits = n_digits * 255.0
     n_digits = n_digits.reshape(n, 75, 75)
     fig = plt.figure(figsize=(20, 4))
+
     plt.title(title)
     plt.yticks([])
     plt.xticks([])
 
     for i in range(10):
         ax = fig.add_subplot(1, 10, i + 1)
+
         bboxes_to_plot = []
         if (len(pred_bboxes) > i):
             bboxes_to_plot.append(n_pred_bboxes[i])
@@ -211,13 +214,15 @@ def display_digits_with_boxes(digits, predictions, labels, pred_bboxes, bboxes, 
             ax.xaxis.label.set_color('red')
 
         plt.imshow(img_to_draw)
-        plt.show()
+
 
         if len(iou) > i:
             color = "black"
             if (n_iou[i][0] < iou_threshold):
                 color = "red"
             ax.text(0.2, -0.3, "iou: %s" % (n_iou[i][0]), color=color, transform=ax.transAxes)
+
+    plt.show()
 
 
 # utility to display training and validation curves
@@ -259,6 +264,7 @@ elif len(gpus) == 1:
 else:
     strategy = tf.distribute.get_strategy()  # default strategy that works on CPU and single GPU
     print('Running on CPU')
+
 print("Number of accelerators: ", strategy.num_replicas_in_sync)
 
 
@@ -342,8 +348,14 @@ with strategy.scope():
 (training_digits, training_labels, training_bboxes,
  validation_digits, validation_labels, validation_bboxes) = dataset_to_numpy_util(training_dataset, validation_dataset, 10)
 
-display_digits_with_boxes(training_digits, training_labels, training_labels, np.array([]), training_bboxes, np.array([]), "training digits and their labels")
-display_digits_with_boxes(validation_digits, validation_labels, validation_labels, np.array([]), validation_bboxes, np.array([]), "validation digits and their labels")
+
+display_digits_with_boxes(training_digits, training_labels, training_labels, np.array([]), training_bboxes, np.array([]),
+                          "training digits and their labels")
+print("Training digits and labels displayed")
+
+display_digits_with_boxes(validation_digits, validation_labels, validation_labels, np.array([]), validation_bboxes, np.array([]),
+                          "validation digits and their labels")
+print("Validation digits and labels displayed")
 
 # Define the Network
 # Here, you'll define your custom CNN.

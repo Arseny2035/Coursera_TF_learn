@@ -22,7 +22,6 @@ import numpy as np
 # print(tape.gradient(loss, w))
 
 
-
 ##########################
 
 #
@@ -35,12 +34,12 @@ import numpy as np
 # print(w)
 
 
-
 ##########################
+#
 # x = tf.ones(2, 2)
-# print(x)
+# print('x = tf.ones(2, 2)\n', x)
 # x = x + 1
-# print(x)
+# print('x = x + 1 \n', x)
 # with tf.GradientTape(persistent=True) as t:
 #     t.watch(x)
 #     y = tf.reduce_sum(x)
@@ -49,8 +48,21 @@ import numpy as np
 # dz_dx = t.gradient(z, x)
 # dy_dx = t.gradient(y, x)
 #
-# print(dz_dx)
-# print(dy_dx)
+# print('t.gradient(z, x) : ', dz_dx)
+# print('t.gradient(y, x) : ', dy_dx)
+
+###########################################################
+a = tf.constant([[1, 2, 3],
+                 [4, 5, 6]])
+b = tf.constant([[7, 8],
+                 [9, 10],
+                 [11, 12]])
+
+print('tf.matmul(a, b)', tf.matmul(a, b))
+
+print(tf.multiply(a, 3))
+print(tf.multiply([2, 3], 5))
+
 
 ############################
 # x = tf.constant(3.0)
@@ -125,7 +137,25 @@ def tf_gradient_tape(x):
     return dz_dx
 
 # Check your function
-tmp_x = tf.constant(2.0)
-dz_dx = tf_gradient_tape(tmp_x)
-result = dz_dx.numpy()
-result
+# tmp_x = tf.constant(2.0)
+# dz_dx = tf_gradient_tape(tmp_x)
+# result = dz_dx.numpy()
+# print(result)
+
+# j = 5
+# vector = tf.constant(0.0, shape=(4,))
+# print(vector)
+# vector = tf.constant(0.0, shape=[2, 3])
+# print(vector)
+
+
+#########################################################################
+# x = tf.constant([[1, 2, 3], [4, 5, 6]])
+# print(x.numpy())
+# print('tf.reduce_sum(x).numpy()\n', tf.reduce_sum(x).numpy())
+# print('tf.reduce_sum(x, 0).numpy()\n', tf.reduce_sum(x, 0).numpy())
+# print('tf.reduce_sum(x, 1).numpy()\n', tf.reduce_sum(x, 1).numpy())
+# print('tf.reduce_sum(x, 1, keepdims=True).numpy()\n',
+#       tf.reduce_sum(x, 1, keepdims=True).numpy())
+# print('tf.add([1, 2], [3, 4]).numpy()\n', tf.add([1, 2], [3, 5]).numpy())
+# print('tf.square(5).numpy())\n', tf.square(5).numpy())

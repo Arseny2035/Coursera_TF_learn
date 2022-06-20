@@ -2,7 +2,7 @@ import tensorflow as tf
 from keras.layers import Dense
 from keras import Model
 from keras.layers import concatenate, Input
-from keras.utils import plot_model
+from keras.utils.vis_utils import plot_model
 
 input_a = Input(shape=[1], name="Wide_Input")
 input_b = Input(shape=[1], name="Deep_Input")

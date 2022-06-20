@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 import tensorflow_datasets as tfds
 import cv2
 
-data_dir = "../data/tfds/"
+data_dir = "../../../tensorflow_datasets/CUB200(2011)/CUB_200_2011/CUB_200_2011"
 
 # 1. Visualization Utilities
 #
@@ -100,6 +100,7 @@ plt.rc('text', color='a8151a')
 plt.rc('figure', facecolor='F0F0F0')  # Matplotlib fonts
 MATPLOTLIB_FONT_DIR = os.path.join(os.path.dirname(plt.__file__), "mpl-data/fonts/ttf")
 
+iou_threshold = 0.5
 
 # utility to display a row of digits with their predictions
 def display_digits_with_boxes(images, pred_bboxes, bboxes, iou, title, bboxes_normalized=False):
@@ -193,23 +194,7 @@ def read_image_with_shape(image, bbox):
 
     return original_image, image, bbox_list
 
-# read_image_tfds_with_original_bbox
-# This function reads image from data
-# It also denormalizes the bounding boxes (it undoes the bounding box normalization that is performed by the previous two helper functions.)
 
-def read_image_tfds_with_original_bbox(data):
-    image = data["image"]
-    bbox = data["bbox"]
-
-    shape = tf.shape(image)
-    factor_x = tf.cast(shape[1], tf.float32)
-    factor_y = tf.cast(shape[0], tf.float32)
-
-    bbox_list = [bbox[1] * factor_x ,
-                 bbox[0] * factor_y,
-                 bbox[3] * factor_x,
-                 bbox[2] * factor_y]
-    return image, bbox_list
 
 # dataset_to_numpy_util
 # This function converts a dataset into numpy arrays of images and boxes.
@@ -260,23 +245,62 @@ def dataset_to_numpy_with_original_bboxes_util(dataset, batch_size=0, N=0):
 
     return np.array(ds_original_images), np.array(ds_images), np.array(ds_bboxes)
 
+# read_image_tfds_with_original_bbox
+# This function reads image from data
+# It also denormalizes the bounding boxes (it undoes the bounding box normalization that is performed by the previous two helper functions.)
+
+def read_image_tfds_with_original_bbox(data):
+    image = data["image"]
+    bbox = data["bbox"]
+
+    shape = tf.shape(image)
+    factor_x = tf.cast(shape[1], tf.float32)
+    factor_y = tf.cast(shape[0], tf.float32)
+
+    bbox_list = [bbox[1] * factor_x ,
+                 bbox[0] * factor_y,
+                 bbox[3] * factor_x,
+                 bbox[2] * factor_y]
+    return image, bbox_list
+
 # 2.2 Visualize the images and their bounding box labels
 # Now you'll take a random sample of images from the training and validation sets and visualize
 # them by plotting the corresponding bounding boxes.
 #
 # Visualize the training images and their bounding box labels
 
+##############################################
+# Errors in downloaded dataset
+# def get_visualization_training_dataset():
+#     try:
+#         os.makedirs(data_dir)
+#     except:
+#         pass
+#     print(data_dir)
+#     dataset, info = tfds.load("caltech_birds2010", split="train", data_dir=data_dir, with_info=True, download=True)
+#     print(info)
+#     visualization_training_dataset = dataset.map(read_image_tfds_with_original_bbox,
+#                                                  num_parallel_calls=16)
+#     return visualization_training_dataset
+###############################################
+
+
+
 def get_visualization_training_dataset():
-    dataset, info = tfds.load("caltech_birds2010", split="train", with_info=True,
-                              data_dir=data_dir, download=False)
-    print(info)
+
+    print(data_dir)
+    use flow_from_directory of somathing else...
+    Image... download..\
+    dataset = tfds.load("caltech_birds2010", split="train", data_dir=data_dir, with_info=True, download=True)
+    bboxes = None
+
+
     visualization_training_dataset = dataset.map(read_image_tfds_with_original_bbox,
                                                  num_parallel_calls=16)
     return visualization_training_dataset
 
-
 visualization_training_dataset = get_visualization_training_dataset()
-
+print("Dataset is loaded")
 
 (visualization_training_images, visualization_training_bboxes) = \
     dataset_to_numpy_util(visualization_training_dataset, N=10)
@@ -286,7 +310,7 @@ display_digits_with_boxes(np.array(visualization_training_images), np.array([]),
 
 # Visualize the validation images and their bounding boxes
 def get_visualization_validation_dataset():
-    dataset = tfds.load("caltech_birds2010", split="test", data_dir=data_dir, download=False)
+    dataset = tfds.load("caltech_birds2010", split="test", data_dir=data_dir, download=True)
     visualization_validation_dataset = dataset.map(read_image_tfds_with_original_bbox,
                                                    num_parallel_calls=16)
     return visualization_validation_dataset

@@ -1,7 +1,8 @@
-from __future__ import absolute_import, division, print_function,unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import tensorflow as tf
 import tensorflow_hub as hub
+
 
 import numpy as np
 import os
@@ -10,9 +11,13 @@ from tqdm import tqdm
 import tensorflow_datasets as tfds
 
 splits = ['train[:80%]', 'train[80%:90%]', 'train[90%:]']
-(train_examples, validation_examples, test_examples), info = tfds.load('oxford_flowers102', with_info=True,
-                                                                       as_supervised=True, split=splits,
-                                                                       data_dir='../data/')
+(train_examples, validation_examples, test_examples), info = \
+    tfds.load('oxford_flowers102',
+              with_info=True,
+              as_supervised=True,
+              split=splits,
+              data_dir='../data/Datasets')
+
 num_examples = info.splits['train'].num_examples
 num_classes = info.features['label'].num_classes
 
@@ -25,24 +30,36 @@ num_classes = info.features['label'].num_classes
 # The gradients are synced across all the replicas by summing them.
 # After the sync, the same update is made to the copies of the variables on each replica.
 
-# If the list of devices is not specified in the
-# `tf.distribute.MirroredStrategy` constructor, it will be auto-detected.
-strategy = tf.distribute.MirroredStrategy()
-print("Number of devices: {}",format(strategy.num_replicas_in_sync))
+
+
+# # If the list of devices is not specified in the
+# # `tf.distribute.MirroredStrategy` constructor, it will be auto-detected.
+# strategy = tf.distribute.MirroredStrategy()
+# print("Number of devices: {}", format(strategy.num_replicas_in_sync))
+
+
+# Take GPU name
+gpu_name = "GPU:0"
+# define the strategy and pass in the device name
+strategy = tf.distribute.OneDeviceStrategy(device=gpu_name)
+print('strategy: ', strategy)
+
 
 # Setup input pipeline
 # Set some constants, including the buffer size, number of epochs, and the image size.
 BUFFER_SIZE = num_examples
 EPOCHS = 10
 pixels = 224
-MODULE_HANDLE = 'data/resnet_50_features_vectors'
+MODULE_HANDLE = '../data/Module_handles/resnet_50_feature_vector'
 IMAGE_SIZE = (pixels, pixels)
-print("Using {} with imput size {}",format(MODULE_HANDLE, IMAGE_SIZE))
+print("Using {} with input size ({} * {})".format(MODULE_HANDLE, str(pixels), str(pixels)))
+
 
 # Define a function to format the image (resizes the image and scales the pixel values to range from [0,1].
 def format_image(image, label):
     image = tf.image.resize(image, IMAGE_SIZE) / 255.0
     return image, label
+
 
 # Set the global batch size (please complete this section)
 # Given the batch size per replica and the strategy, set the global batch size.
@@ -64,9 +81,9 @@ def set_global_batch_size(batch_size_per_replica, strategy):
 
     return global_batch_size
 
+
 BATCH_SIZE_PER_REPLICA = 64
 GLOBAL_BATCH_SIZE = set_global_batch_size(BATCH_SIZE_PER_REPLICA, strategy)
-
 
 train_batches = train_examples.shuffle(num_examples // 4).map(format_image).batch(BATCH_SIZE_PER_REPLICA).prefetch(1)
 validation_batches = validation_examples.map(format_image).batch(BATCH_SIZE_PER_REPLICA).prefetch(1)
@@ -77,7 +94,7 @@ test_batches = test_examples.map(format_image).batch(1)
 # Create the distributed datasets using experimental_distribute_dataset() of the Strategy class and pass in the training batches.
 #
 # Do the same for the validation batches and test batches.
-# GRADED FUNCTION
+
 def distribute_datasets(strategy, train_batches, validation_batches, test_batches):
     ### START CODE HERE ###
     train_dist_dataset = strategy.experimental_distribute_dataset(train_batches)
@@ -91,9 +108,9 @@ def distribute_datasets(strategy, train_batches, validation_batches, test_batche
 train_dist_dataset, val_dist_dataset, test_dist_dataset = \
     distribute_datasets(strategy, train_batches, validation_batches, test_batches)
 
-print(type(train_dist_dataset))
-print(type(val_dist_dataset))
-print(type(test_dist_dataset))
+print('type(train_dist_dataset)', type(train_dist_dataset))
+print('type(val_dist_dataset)', type(val_dist_dataset))
+print('type(test_dist_dataset)', type(test_dist_dataset))
 
 # Also get familiar with a single batch from the train_dist_dataset:
 #
@@ -107,11 +124,12 @@ print(f"x[0] contains the features, and has shape {x[0].shape}")
 print(f"  so it has {x[0].shape[0]} examples in the batch, each is an image that is {x[0].shape[1:]}")
 print(f"x[1] contains the labels, and has shape {x[1].shape}")
 
+
 # Create the model
 # Use the Model Subclassing API to create model ResNetModel as a subclass of tf.keras.Model.
 class ResNetModel(tf.keras.Model):
     def __init__(self, classes):
-        super(ResNet, self).__init__()
+        super(ResNetModel, self).__init__()
         self._future_extractor = hub.KerasLayer(MODULE_HANDLE, trainable=False)
         self._classifier = tf.keras.layers.Dense(classes, activation='softmax')
 
@@ -120,33 +138,39 @@ class ResNetModel(tf.keras.Model):
         x = self._classifier(x)
         return x
 
+
 # Create a checkpoint directory to store the checkpoints (the model's weights during training).
 # Create a checkpoint directory to store the checkpoints.
-checkpoint_dir = './training_checkpionts'
-checkpoint_prefix = os.path.join(checkpoint_dir, 'ckpt')
-#
-# Define the loss function
-# You'll define the loss_object and compute_loss within the strategy.scope().
-#
-# loss_object will be used later to calculate the loss on the test set.
-# compute_loss will be used later to calculate the average loss on the training data.
-# You will be using these two loss calculations later.
+checkpoint_dir = 'training_checkpionts'
+checkpoint_prefix = os.path.join(checkpoint_dir, 'ckpt_distributed_Oxford')
+print('Checkpoints in: ', checkpoint_prefix)
+
+
+
+# Define the loss function  and compute_loss within the strategy.scope().
 with strategy.scope():
-    loss_object = tf.keras.losses.SparceCategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
+    loss_object = tf.keras.losses.SparseCategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
+    # loss_object = 'sparse_categorical_crossentropy'
+    print('loss_object:', loss_object)
+
     # or loss+fn = tf.keras.losses.sparse_categorical_crossentropy
     def compute_loss(labels, predictions):
         per_example_loss = loss_object(labels, predictions)
         return tf.nn.compute_average_loss(per_example_loss, global_batch_size=GLOBAL_BATCH_SIZE)
 
+
     test_loss = tf.keras.metrics.Mean(name='test_loss')
+    print('test_loss set')
 
 # Define the metrics to track loss and accuracy
 # These metrics track the test loss and training and test accuracy.
 #
 # You can use .result() to get the accumulated statistics at any time, for example, train_accuracy.result().
 with strategy.scope():
-    train_accuracy = tf.keras.metrics.SparceCategoricalAccuracy(name='train_accuracy')
-    test_accuracy = tf.keras.metrics.SparceCategoricalAccuracy(name='test_accuracy')
+    print('here')
+    train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
+    print('train_accuracy:', train_accuracy)
+    test_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
 
 # Instantiate the model, optimizer, and checkpoints
 # This code is given to you. Just remember that they are created within the strategy.scope().
@@ -157,7 +181,8 @@ with strategy.scope():
 with strategy.scope():
     model = ResNetModel(classes=num_classes)
     optimizer = tf.keras.optimizers.Adam()
-    checkpoint = tf.keras.Checkpoint(optimizer=optimizer, model=model)
+    checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
+
 
 # Training loop (please complete this section)
 # You will define a regular training step and test step, which could work without a distributed strategy. You can then use strategy.run to apply these functions in a distributed manner.
@@ -213,7 +238,9 @@ def train_test_step_fns(strategy, model, compute_loss, optimizer, train_accuracy
 
         return train_step, test_step
 
-train_step, test_step = train_test_step_fns(strategy, model, compute_loss, optimizer, train_accuracy, loss_object, test_loss, test_accuracy)
+
+train_step, test_step = train_test_step_fns(strategy, model, compute_loss, optimizer, train_accuracy, loss_object,
+                                            test_loss, test_accuracy)
 
 
 # Distributed training and testing (please complete this section)
@@ -250,6 +277,7 @@ print()
 print("When passing in args=(list_of_inputs,)")
 fun1(args=(list_of_inputs,))
 
+
 # Notice that depending on how list_of_inputs is passed to args affects whether fun1 sees one or two positional arguments.
 #
 # If you see an error message about positional arguments when running the training code later, please come back to check how you're passing in the inputs to run.
@@ -273,8 +301,11 @@ def distributed_train_test_step_fns(strategy, train_step, test_step, model, comp
 
         return distributed_train_step, distributed_test_step
 
+
 # Call the function that you just defined to get the distributed train step function and distributed test step function.
-distributed_train_step, distributed_test_step = distributed_train_test_step_fns(strategy, train_step, test_step, model, compute_loss, optimizer, train_accuracy, loss_object, test_loss, test_accuracy)
+distributed_train_step, distributed_test_step = distributed_train_test_step_fns(strategy, train_step, test_step, model,
+                                                                                compute_loss, optimizer, train_accuracy,
+                                                                                loss_object, test_loss, test_accuracy)
 
 # An important note before you continue:
 #
@@ -331,14 +362,13 @@ with strategy.scope():
 
         template = ("Epoch {}, Loss: {}, Accuracy: {}, Test Loss: {}, "
                     "Test Accuracy: {}")
-        print (template.format(epoch+1, train_loss,
-                               train_accuracy.result()*100, test_loss.result(),
-                               test_accuracy.result()*100))
+        print(template.format(epoch + 1, train_loss,
+                              train_accuracy.result() * 100, test_loss.result(),
+                              test_accuracy.result() * 100))
 
         test_loss.reset_states()
         train_accuracy.reset_states()
         test_accuracy.reset_states()
-
 
 # Things to note in the example above:
 #
@@ -351,29 +381,21 @@ with strategy.scope():
 #
 # Step 1: Save the model as a SavedModel
 # This code will save your model as a SavedModel
-# model_save_path = "./tmp/mymodel/1/"
-# tf.saved_model.save(model, model_save_path)
+model_save_path = "Data\Models\Oxford_distributed"
+tf.saved_model.save(model, model_save_path)
 
 
-# Step 2: Zip the SavedModel Directory into /mymodel.zip
+# Zip the SavedModel Directory into /mymodel.zip
 # This code will zip your saved model directory contents into a single file.
+import os
+import zipfile
 #
-# If you are on colab, you can use the file browser pane to the left of colab to find mymodel.zip. Right click on it and select 'Download'.
-#
-# If the download fails because you aren't allowed to download multiple files from colab, check out the guidance here: https://ccm.net/faq/32938-google-chrome-allow-websites-to-perform-simultaneous-downloads
-#
-# If you are in Coursera, follow the instructions previously provided.
-#
-# It's a large file, so it might take some time to download.
-# import os
-# import zipfile
-#
-# def zipdir(path, ziph):
-#     # ziph is zipfile handle
-#     for root, dirs, files in os.walk(path):
-#         for file in files:
-#             ziph.write(os.path.join(root, file))
-#
-# zipf = zipfile.ZipFile('./mymodel.zip', 'w', zipfile.ZIP_DEFLATED)
-# zipdir('./tmp/mymodel/1/', zipf)
-# zipf.close()
+def zipdir(path, ziph):
+    # ziph is zipfile handle
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            ziph.write(os.path.join(root, file))
+
+zipf = zipfile.ZipFile('Data\Models\Oxford_distributed\mymodel.zip', 'w', zipfile.ZIP_DEFLATED)
+zipdir('Data\Models\Oxford_distributed', zipf)
+zipf.close()

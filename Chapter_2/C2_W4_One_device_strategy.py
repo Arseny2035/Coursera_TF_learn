@@ -12,8 +12,7 @@ import tensorflow_datasets as tfds
 devices = tf.config.list_physical_devices('GPU')
 print(devices[0])
 
-# You'll see that the name will look something like "/physical_device:GPU:0"
-# Just take the GPU:0 part and use that as the name
+# Take GPU name
 gpu_name = "GPU:0"
 
 # define the strategy and pass in the device name
@@ -75,7 +74,7 @@ def build_and_compile_model():
     # define the model
     model = tf.keras.Sequential([
         feature_extractor,
-        tf.keras.layers.Danse(num_classes, activation='softmax')
+        tf.keras.layers.Dense(num_classes, activation='softmax')
     ])
 
     # display summary
@@ -84,7 +83,7 @@ def build_and_compile_model():
     # configure the optimizer, loss and metrics
     optimizer = tf.keras.optimizers.SGD(lr=0.02, momentum=0.9) if do_fine_training else 'adam'
     model.compile(optimizer=optimizer,
-                  loss='sparce_categorical_crossentropy',
+                  loss='sparse_categorical_crossentropy',
                   metrics=['accuracy'])
     return model
 

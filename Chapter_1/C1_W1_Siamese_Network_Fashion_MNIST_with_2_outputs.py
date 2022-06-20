@@ -1,18 +1,21 @@
 # import keras.optimizers
+import keras.layers
 import tensorflow as tf
 # from keras import Model, layers, Input
-from keras.layers import Lambda, Input, Flatten, Dense, Dropout
-from keras.models import Model, model_from_json
+from keras.layers import Lambda, Input, Flatten, Dense, Dropout, Layer
+
 
 # from keras.optimizers
 # from keras.optimizers import RMSprop
 from keras.datasets import fashion_mnist
-from keras.utils.vis_utils import plot_model
+
 
 from keras import backend as K
 from keras.losses import Loss
 
 import os
+from keras.models import Model, model_from_json, load_model
+from keras.utils.vis_utils import plot_model
 
 import pydot
 import graphviz
@@ -62,24 +65,32 @@ def show_image(image):
 
 
 def initialize_base_network():
-    input = Input(shape=(28, 28,))
-    x = Flatten()(input)
-    x = Dense(128, activation='relu')(x)
-    x = Dropout(0.1)(x)
-    x = Dense(128, activation='relu')(x)
-    x = Dropout(0.1)(x)
-    x = Dense(128, activation='relu')(x)
+    input = Input(shape=(28,28,), name="base_input")
+    x = Flatten(name="flatten_input")(input)
+    x = Dense(128, activation='relu', name="first_base_dense")(x)
+    x = Dropout(0.1, name="first_dropout")(x)
+    x = Dense(128, activation='relu', name="second_base_dense")(x)
+    x = Dropout(0.1, name="second_dropout")(x)
+    x = Dense(128, activation='relu', name="third_base_dense")(x)
+
     return Model(inputs=input, outputs=x)
 
+# class CustomLayerEuclideanDistance(Layer):
+#     def __int__(self, x, y):
 
-def euclidian_distance(vects):
+
+def euclidean_distance(vects):
+    from keras import backend as K
     x, y = vects
     sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
-    return K.sqrt(K.maximum(sum_square, K.epsilon()))
+    result = K.sqrt(K.maximum(sum_square, K.epsilon()))
+    print('euclidean_distance: ', result)
+    return result
 
 
 def eucl_dist_output_shape(shapes):
     shape1, shape2 = shapes
+    print('eucl_dist_output_shape: ', shape1[0], 1)
     return (shape1[0], 1)
 
 
@@ -102,6 +113,35 @@ class ContrastiveLoss(Loss):
         square_pred = K.square(y_pred)
         margin_square = K.square(K.maximum(self.margin - y_pred, 0))
         return K.mean(y_true * square_pred + (1 - y_true) * margin_square)
+
+    def get_config(self):
+        return {'margin': self.margin}
+
+
+# def build_model_with_functional(model_save_directory: str):
+def build_model_with_functional():
+    # If model was not created yet.
+    base_network = initialize_base_network()
+    # plot_model(base_network, show_shapes=True, show_layer_names=True,
+    #            to_file=os.path.join(model_save_directory, 'base-model.png'))
+
+    # Create the left input and point to the network
+    input_a = Input(shape=(28, 28,), name="left_input")
+    vect_output_a = base_network(input_a)
+
+    # Create the right input and point to the network
+    input_b = Input(shape=(28, 28,), name="right_input")
+    vect_output_b = base_network(input_b)
+
+    # # Measure the similarity of the two vector outputs
+    output = Lambda(euclidean_distance, name='output_layer',
+                    output_shape=eucl_dist_output_shape)([vect_output_a, vect_output_b])
+
+
+    # Specify the inputs and output of the model
+    funct_model = Model([input_a, input_b], output)
+
+    return funct_model
 
 
 # Load dataset
@@ -135,70 +175,110 @@ show_image(ts_pairs[:, 0][0])
 show_image(ts_pairs[:, 0][1])
 #######################
 
+
 # Set options for model save/load.
 MUST_SAVE_THE_MODEL = True
-LOAD_MODEL = True
+MUST_LOAD_MODEL = True
+
+# SAVE_LOAD_MODEL_METHOD = 'model.to_json'
+SAVE_LOAD_MODEL_METHOD = 'model.save'
+
+MODEL_DIRECTORY = 'Data\Siamese_Network_Fashion_MNIST_with_2_outputs\models'
+MODEL_FILE = os.path.join(MODEL_DIRECTORY, 'saved_model.pb')
+WEIGHTS_FILE = os.path.join(MODEL_DIRECTORY, 'model_weights.h5')
 
 OPTIMIZER = tf.keras.optimizers.RMSprop(learning_rate=0.001)
 LOSS = ContrastiveLoss(margin=1)
 METRICS = ['accuracy']
 
-# Load or create model.
-if LOAD_MODEL and os.path.exists('Data/Siamese/models/model.json') \
-        and os.path.exists('Data/Siamese/models/model_weights.h5'):
+EPOCHS = 2
+BATCH_SIZE = 128
 
+# Load or create model.
+if MUST_LOAD_MODEL and os.path.exists(MODEL_FILE):
     # Load saved model if it exists.
-    json_file = open('Data/Siamese/models/model.json')
-    loaded_model_json = json_file.read()
-    json_file.close()
-    model = model_from_json(loaded_model_json)
-    model.load_weights('Data/Siamese/models/model_weights.h5')
-    model.compile(loss=LOSS, optimizer=OPTIMIZER, metrics=METRICS)
-    print("Model was load from disk!")
+
+    if SAVE_LOAD_MODEL_METHOD == 'model.to_json':
+        json_file = open(MODEL_FILE, 'r')
+        loaded_model_json = json_file.read()
+        json_file.close()
+        model = model_from_json(loaded_model_json,
+                            custom_objects={'euclidean_distance': euclidean_distance,
+                                            'eucl_dist_output_shape': eucl_dist_output_shape,
+                                            'K': K,
+                                            'K.sum': K.sum,
+                                            'K.square': K.square,
+                                            'K.sqrt': K.sqrt,
+                                            'K.maximum': K.maximum,
+                                            'K.epsilon': K.epsilon,
+                                            'ContrastiveLoss': ContrastiveLoss})
+        print("Model was load from disk!")
+
+        model.load_weights(WEIGHTS_FILE)
+        print("Weights loaded!")
+        # model.compile(optimizer=OPTIMIZER, loss=LOSS, metrics=METRICS)
+    else:
+        model = load_model(MODEL_FILE,
+                            custom_objects={'euclidean_distance': euclidean_distance,
+                                            'eucl_dist_output_shape': eucl_dist_output_shape,
+                                            'K': K,
+                                            'K.sum': K.sum,
+                                            'K.square': K.square,
+                                            'K.sqrt': K.sqrt,
+                                            'K.maximum': K.maximum,
+                                            'K.epsilon': K.epsilon})
+        print("Model was load from disk!")
+
+
+
+
+    print(model.summary())
+
+    model.evaluate([ts_pairs[:, 0], ts_pairs[:, 1]], ts_y)
 
 else:
+    # Creating model
 
-    # If model was not created yet.
-    base_network = initialize_base_network()
-    plot_model(base_network, show_shapes=True, show_layer_names=True, to_file='Data/Siamese/models/base-model.png')
+    # model = build_model_with_functional(MODEL_DIRECTORY)
+    model = build_model_with_functional()
 
-    # Create the left input and point to the network
-    input_a = Input(shape=(28, 28,), name="left_input")
-    vect_output_a = base_network(input_a)
+    model.compile(optimizer=OPTIMIZER, loss=LOSS, metrics=METRICS)
+    print("Model was created!")
 
-    # Create the right input and point to the network
-    input_b = Input(shape=(28, 28,), name="right_input")
-    vect_output_b = base_network(input_b)
+    try:
+        os.makedirs(MODEL_DIRECTORY)
+    except:
+        pass
+    plot_model(model, show_shapes=True, show_layer_names=True,
+               to_file=os.path.join(MODEL_DIRECTORY, 'model.png'))
+    print(model.summary())
 
-    # Measure the similarity of the two vector outputs
-    output = Lambda(euclidian_distance, name='output_layer',
-                    output_shape=eucl_dist_output_shape)([vect_output_a, vect_output_b])
-
-    # Specify the inputs and output of the model
-    model = Model([input_a, input_b], output)
-
-    # Plot model graph
-    plot_model(model, show_shapes=True, show_layer_names=True, to_file='Data/Siamese/models/outer-model.png')
-
-    model.compile(loss=LOSS, optimizer=OPTIMIZER, metrics=METRICS)
-
-    history = model.fit([tr_pairs[:, 0], tr_pairs[:, 1]], tr_y, epochs=20, batch_size=128,
+    history = model.fit([tr_pairs[:, 0], tr_pairs[:, 1]], tr_y, epochs=EPOCHS, batch_size=BATCH_SIZE,
                         validation_data=([ts_pairs[:, 0], ts_pairs[:, 1]], ts_y))
 
-    # Save new model if we had to.
+    # SAVING model and weights (if necessary)
     if MUST_SAVE_THE_MODEL:
-        model_json = model.to_json()
-        with open('Data/Siamese/models/model.json', 'w') as json_file:
-            json_file.write(model_json)
+        if SAVE_LOAD_MODEL_METHOD == 'model.to_json':
+            model_json = model.to_json()
+            with open(MODEL_FILE, 'w') as json_file:
+                json_file.write(model_json)
+                print("Model saved!")
+                json_file.close()
+            model.save_weights(WEIGHTS_FILE)
+            print("Weights saved!")
+        else:
+            model.save(MODEL_FILE)
+            print("Model saved!")
 
-        model.save_weights('Data/Siamese/models/model_weights.h5')
-        print("Model saved to disk!")
+
+    print(history)
 
 
 # Compute classification accuracy with a fixed threshold on distance
 def compute_accuracy(y_true, y_pred):
     pred = y_pred.ravel() < 0.5
     return np.mean(pred == y_true)
+
 
 loss = model.evaluate(x=[ts_pairs[:, 0], ts_pairs[:, 1]], y=ts_y)
 
@@ -253,11 +333,10 @@ def display_images(left, right, predictions, labels, title, n):
     right = np.reshape(right, [28, 28 * n])
     plt.imshow(right)
 
+# NEED TO REPARE:
+# y_pred_train = np.square(y_pred_train)
+# n = 10
+# indexes = np.random.choice(len(y_pred_train), size=n)
+# display_images(tr_pairs[:, 0][indexes], tr_pairs[:, 1][indexes], y_pred_train[indexes], tr_y[indexes],
+#                "clothes and their dissimilarity", n)
 
-y_pred_train = np.square(y_pred_train)
-n = 10
-indexes = np.random.choice(len(y_pred_train), size=n)
-display_images(tr_pairs[:, 0][indexes], tr_pairs[:, 1][indexes], y_pred_train[indexes], tr_y[indexes],
-               "clothes and their dissimilarity", n)
-
-##
